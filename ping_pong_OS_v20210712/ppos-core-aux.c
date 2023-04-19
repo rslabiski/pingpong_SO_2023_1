@@ -9,7 +9,7 @@
 
 // ****************************************************************************
 
-
+//#define DEBUG
 
 void before_ppos_init () {
     // put your customization here
@@ -23,6 +23,45 @@ void after_ppos_init () {
 #ifdef DEBUG
     printf("\ninit - AFTER");
 #endif
+    printf("\nID task Main: %d", taskMain->id);
+
+    //task_t* taskExec: Ponteiro para a TCB da tarefa em execucao
+    printf("\nID task em execucao: %d", taskExec->id); 
+    
+    //task_t* taskDisp: Ponteiro para a tarefa de escalonamento (dispatcher)
+    taskDisp == NULL ?
+        printf("\ntaskDisp: VAZIA") :
+        printf("\ntaskDisp: NAO vazia (ID: %d)", taskDisp->id);
+
+    //task_t* freeTask: Ponteiro para a tarefa que terminou
+    freeTask == NULL ? 
+        printf("\nfreeTask: VAZIA") : 
+        printf("\nfreeTask: NAO vazia (ID: %d)", freeTask->id);
+    
+    //task_t* readyQueue: Ponteiro para a fila de tarefas prontas
+    readyQueue == NULL ? 
+        printf("\nreadyQueue VAZIA") : 
+        printf("\nreadyQueue NAO vazia (ID: %d)", readyQueue->id);
+
+    //task_t* sleepQueue: Ponteiro para a fila de tarefas dormindo
+    sleepQueue == NULL ?
+        printf("\nsleepQueue VAZIA") :
+        printf("\nsleepQueue NAO vazia (ID: %d)", sleepQueue->id);
+
+    //long countTasks: Total de tarefas de usuario
+    printf("\ntotal de tarefas: %ld", countTasks); 
+    
+    //long nextid: Valor do proximo ID a ser usado pelo task_create()
+    printf("\nproximo ID a ser utilizado: %ld", nextid);
+    
+    //unsigned char preemption; // indica se pode haver preempcao no momento. 
+                                //   1 indica que a preempcao esta habilida, 
+                                // !=1 indica desabilitado
+    printf("\npreempcao ativa: %d (1-ativo, !=1:inativo)", preemption);
+
+    //unsigned int systemTime
+    printf("\nafter_tsk_create: tempo do sistema: %d", systemTime);
+    printf("\n\n");
 }
 
 void before_task_create (task_t *task ) {
