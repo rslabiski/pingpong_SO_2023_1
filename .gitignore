@@ -20,7 +20,6 @@ projeto.md
 
 # Libraries
 *.lib
-*.a
 *.la
 *.lo
 
