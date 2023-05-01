@@ -15,42 +15,29 @@ int valid_prio(int prio);
 // envelhece a task
 void scheduler_aging(task_t *task);
 
-// define a prioridade dinamica de uma tarefa (ou da tarefa atual)
-void task_setD_prio(task_t *task, int d_prio);
-
-// retorna a prioridade dinamica de uma tarefa (ou da tarefa atual)
-int task_getD_prio(task_t *task);
-
 int valid_prio(int prio) {
-    if(prio > MAX_PRIORITY)
-        return MAX_PRIORITY;
-    else if(prio < MIN_PRIORITY)
-        return MIN_PRIORITY;
+    
     return prio;
 }
 
 void scheduler_aging(task_t *task) {
-    task_setD_prio(task, task_getD_prio(task) + ALPHA_AGING);
+    if(task->dynamicPriority > MIN_PRIORITY)
+        task->dynamicPriority += ALPHA_AGING;
 }
 
-void task_setD_prio(task_t *task, int d_prio){    
-    if(task == NULL)
-        taskExec->dynamicPriority = valid_prio(d_prio);
-    else
-        task->dynamicPriority = valid_prio(d_prio);
-}
+void task_setprio (task_t *task, int prio) {   
+    if(prio > MAX_PRIORITY)
+        prio = MAX_PRIORITY;
+    else if(prio < MIN_PRIORITY)
+        prio = MIN_PRIORITY;
 
-int task_getD_prio(task_t *task) {
-    if(task == NULL)
-        return taskExec->dynamicPriority;
-    return task->dynamicPriority;
-}
-
-void task_setprio (task_t *task, int prio) {    
-    if(task == NULL)
-        taskExec->staticPriority = valid_prio(prio);
-    else
-        task->staticPriority = valid_prio(prio);
+    if(task == NULL) {
+        taskExec->staticPriority = prio;
+        taskExec->dynamicPriority = prio;
+    } else {
+        task->staticPriority = prio;
+        task->dynamicPriority = prio;
+    }
 }
 
 int task_getprio (task_t *task) {
@@ -197,11 +184,6 @@ int before_task_join (task_t *task) {
 #ifdef DEBUG
     printf("\ntask_join - BEFORE - [%d]", taskExec->id);
 #endif
-
-    // inicializa o valor da prioridade dinamica
-    task_setD_prio(task, task_getprio(task));
-    //printf("task ID: %d, static: %d, dinamic: %d \n",task->id, task->staticPriority, task->dynamicPriority);
-
     return 0;
 }
 
@@ -480,14 +462,13 @@ task_t * scheduler() {
         
         // percorre a fila circular para encontrar a tarefa com menor valor de prioridade dynamicPriorityamica (-20 a 20)
         while(aux != readyQueue) {
-            if(task_getD_prio(aux) < task_getD_prio(lowest_prio)) {
+            if(aux->dynamicPriority < lowest_prio->dynamicPriority) {
                 scheduler_aging(lowest_prio); // envelhece
                 lowest_prio = aux; // atualiza a tarefa que sera executada
             }
-            else if (task_getD_prio(aux) == task_getD_prio(lowest_prio)) {
-
+            else if (aux->dynamicPriority == lowest_prio->dynamicPriority) {
                 // decisao a partir da estatica
-                if(task_getprio(aux) < task_getprio(lowest_prio)) {
+                if(aux->staticPriority < lowest_prio->staticPriority) {
                     scheduler_aging(lowest_prio);
                     lowest_prio = aux;
                 } else {
@@ -502,7 +483,7 @@ task_t * scheduler() {
         }
 
         // reajuste da prioridade da tarefa escolhida
-        task_setD_prio(lowest_prio, task_getprio(lowest_prio));
+        lowest_prio->dynamicPriority = task_getprio(lowest_prio);
 
         return lowest_prio;
     }
