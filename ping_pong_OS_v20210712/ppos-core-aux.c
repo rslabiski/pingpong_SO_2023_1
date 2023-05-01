@@ -5,12 +5,28 @@
 // ****************************************************************************
 // Coloque aqui as suas modificações, p.ex. includes, defines variáveis, 
 // estruturas e funções
+#include <signal.h>
+#include <sys/time.h>
+
 #define MAX_PRIORITY 20
 #define MIN_PRIORITY -20
-#define ALPHA_AGING -1  //fator de envelhecimento do scheduler
+#define ALPHA_AGING -1  // fator de envelhecimento do scheduler
+#define MAX_TICKS 20    // numero maximo de ticks para uma tarefa
+
+struct sigaction action;    // estrutura que define um tratador de sinal
+struct itimerval timer;     // estrutura de inicialização do timer
 
 // envelhece a task
 void scheduler_aging(task_t *task);
+
+// inicializacao do tratador de sinal
+void signal_init();
+
+// inicializacao do timer
+void clock_init();
+
+// tratamento de interrupcao gerado pelo timer
+void timer_interruption();
 
 void scheduler_aging(task_t *task) {
     if(task->dynamicPriority > MIN_PRIORITY)
@@ -38,22 +54,50 @@ int task_getprio (task_t *task) {
     return task->staticPriority; 
 }
 
-void print_countTasks() {
-    printf("quantidade de tasks: %ld\n", countTasks);
+void signal_init() {
+    // registra a ação para o sinal de timer SIGALRM
+    action.sa_handler = timer_interruption;
+    sigemptyset (&action.sa_mask) ;
+    action.sa_flags = 0 ;
+
+    if (sigaction (SIGALRM, &action, 0) < 0) {
+        perror ("\nErro em sigaction: ") ;
+        exit (1) ;
+    }
+#ifdef DEBUG
+    printf("\nsignal init");
+#endif
 }
 
-void print_readyQueue() {
-    printf("fila de tarefas prontas:");
+void clock_init() {
+    // ajusta valores do temporizador
+    timer.it_value.tv_usec = 1 ;        // primeiro disparo, em micro-segundos
+    timer.it_value.tv_sec  = 0 ;        // primeiro disparo, em segundos
+    timer.it_interval.tv_usec = 1000 ;  // disparos subsequentes, em micro-segundos
+    timer.it_interval.tv_sec = 0;       // disparos subsequentes, em segundos
 
-    task_t *first, *aux;
-    first = readyQueue;
-    aux = readyQueue;
-    do {
-        printf(" %d", aux->id);
-        aux = aux->next;
-    } while (aux != readyQueue);
+    // arma o temporizador ITIMER_REAL (vide man setitimer)
+    if (setitimer (ITIMER_REAL, &timer, 0) < 0) {
+        perror ("\nErro em setitimer: ") ;
+        exit (1) ;
+    }
+#ifdef DEBUG
+    printf("\nclock_init");
+#endif
 }
 
+void timer_interruption() {
+    // se for uma tarefa de usuario (main, pang, ..., pung)
+    if(taskExec != taskDisp) {
+        // diminui o quantum da tarefa
+        taskExec->quantum--;
+        // se o quantum da tarefa terminou
+        if(taskExec->quantum == 0) {
+            // libera o processador para proxima tarefa
+            task_yield();
+        }
+    }
+}
 
 // ****************************************************************************
 
@@ -61,6 +105,8 @@ void print_readyQueue() {
 
 void before_ppos_init () {
     // put your customization here
+    signal_init();
+    clock_init();
 #ifdef DEBUG
     printf("\ninit - BEFORE");
 #endif
@@ -82,6 +128,7 @@ void before_task_create (task_t *task ) {
 
 void after_task_create (task_t *task ) {
     // put your customization here
+    task->quantum = MAX_TICKS;
 #ifdef DEBUG
     printf("\ntask_create - AFTER - [%d]", task->id);
 #endif
@@ -117,17 +164,18 @@ void after_task_switch ( task_t *task ) {
 
 void before_task_yield () {
     // put your customization here
+    taskExec->quantum = MAX_TICKS; // restaura o quantum da tarefa
 #ifdef DEBUG
     printf("\ntask_yield - BEFORE - [%d]", taskExec->id);
 #endif
 }
+
 void after_task_yield () {
     // put your customization here
 #ifdef DEBUG
     printf("\ntask_yield - AFTER - [%d]", taskExec->id);
 #endif
 }
-
 
 void before_task_suspend( task_t *task ) {
     // put your customization here

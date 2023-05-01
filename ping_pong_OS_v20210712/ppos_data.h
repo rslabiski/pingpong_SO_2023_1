@@ -27,6 +27,7 @@ typedef struct task_t
    // ... (outros campos deve ser adicionados APOS esse comentario)
    int staticPriority;
    int dynamicPriority;
+   int quantum;
 
 } task_t ;
 
