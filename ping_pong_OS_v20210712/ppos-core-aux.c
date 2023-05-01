@@ -9,16 +9,8 @@
 #define MIN_PRIORITY -20
 #define ALPHA_AGING -1  //fator de envelhecimento do scheduler
 
-// retorna o valor de uma prioridade valida
-int valid_prio(int prio);
-
 // envelhece a task
 void scheduler_aging(task_t *task);
-
-int valid_prio(int prio) {
-    
-    return prio;
-}
 
 void scheduler_aging(task_t *task) {
     if(task->dynamicPriority > MIN_PRIORITY)
