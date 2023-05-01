@@ -5,11 +5,80 @@
 // ****************************************************************************
 // Coloque aqui as suas modificações, p.ex. includes, defines variáveis, 
 // estruturas e funções
+#define MAX_PRIORITY 20
+#define MIN_PRIORITY -20
+#define ALPHA_AGING -1  //fator de envelhecimento do scheduler
+
+// retorna o valor de uma prioridade valida
+int valid_prio(int prio);
+
+// envelhece a task
+void scheduler_aging(task_t *task);
+
+// define a prioridade dinamica de uma tarefa (ou da tarefa atual)
+void task_setD_prio(task_t *task, int d_prio);
+
+// retorna a prioridade dinamica de uma tarefa (ou da tarefa atual)
+int task_getD_prio(task_t *task);
+
+int valid_prio(int prio) {
+    if(prio > MAX_PRIORITY)
+        return MAX_PRIORITY;
+    else if(prio < MIN_PRIORITY)
+        return MIN_PRIORITY;
+    return prio;
+}
+
+void scheduler_aging(task_t *task) {
+    task_setD_prio(task, task_getD_prio(task) + ALPHA_AGING);
+}
+
+void task_setD_prio(task_t *task, int d_prio){    
+    if(task == NULL)
+        taskExec->dynamicPriority = valid_prio(d_prio);
+    else
+        task->dynamicPriority = valid_prio(d_prio);
+}
+
+int task_getD_prio(task_t *task) {
+    if(task == NULL)
+        return taskExec->dynamicPriority;
+    return task->dynamicPriority;
+}
+
+void task_setprio (task_t *task, int prio) {    
+    if(task == NULL)
+        taskExec->staticPriority = valid_prio(prio);
+    else
+        task->staticPriority = valid_prio(prio);
+}
+
+int task_getprio (task_t *task) {
+    if(task == NULL)
+        return taskExec->staticPriority;
+    return task->staticPriority; 
+}
+
+void print_countTasks() {
+    printf("quantidade de tasks: %ld\n", countTasks);
+}
+
+void print_readyQueue() {
+    printf("fila de tarefas prontas:");
+
+    task_t *first, *aux;
+    first = readyQueue;
+    aux = readyQueue;
+    do {
+        printf(" %d", aux->id);
+        aux = aux->next;
+    } while (aux != readyQueue);
+}
 
 
 // ****************************************************************************
 
-//#define DEBUG
+//#define DEBUG 1
 
 void before_ppos_init () {
     // put your customization here
@@ -23,45 +92,6 @@ void after_ppos_init () {
 #ifdef DEBUG
     printf("\ninit - AFTER");
 #endif
-    printf("\nID task Main: %d", taskMain->id);
-
-    //task_t* taskExec: Ponteiro para a TCB da tarefa em execucao
-    printf("\nID task em execucao: %d", taskExec->id); 
-    
-    //task_t* taskDisp: Ponteiro para a tarefa de escalonamento (dispatcher)
-    taskDisp == NULL ?
-        printf("\ntaskDisp: VAZIA") :
-        printf("\ntaskDisp: NAO vazia (ID: %d)", taskDisp->id);
-
-    //task_t* freeTask: Ponteiro para a tarefa que terminou
-    freeTask == NULL ? 
-        printf("\nfreeTask: VAZIA") : 
-        printf("\nfreeTask: NAO vazia (ID: %d)", freeTask->id);
-    
-    //task_t* readyQueue: Ponteiro para a fila de tarefas prontas
-    readyQueue == NULL ? 
-        printf("\nreadyQueue VAZIA") : 
-        printf("\nreadyQueue NAO vazia (ID: %d)", readyQueue->id);
-
-    //task_t* sleepQueue: Ponteiro para a fila de tarefas dormindo
-    sleepQueue == NULL ?
-        printf("\nsleepQueue VAZIA") :
-        printf("\nsleepQueue NAO vazia (ID: %d)", sleepQueue->id);
-
-    //long countTasks: Total de tarefas de usuario
-    printf("\ntotal de tarefas: %ld", countTasks); 
-    
-    //long nextid: Valor do proximo ID a ser usado pelo task_create()
-    printf("\nproximo ID a ser utilizado: %ld", nextid);
-    
-    //unsigned char preemption; // indica se pode haver preempcao no momento. 
-                                //   1 indica que a preempcao esta habilida, 
-                                // !=1 indica desabilitado
-    printf("\npreempcao ativa: %d (1-ativo, !=1:inativo)", preemption);
-
-    //unsigned int systemTime
-    printf("\nafter_tsk_create: tempo do sistema: %d", systemTime);
-    printf("\n\n");
 }
 
 void before_task_create (task_t *task ) {
@@ -167,6 +197,11 @@ int before_task_join (task_t *task) {
 #ifdef DEBUG
     printf("\ntask_join - BEFORE - [%d]", taskExec->id);
 #endif
+
+    // inicializa o valor da prioridade dinamica
+    task_setD_prio(task, task_getprio(task));
+    //printf("task ID: %d, static: %d, dinamic: %d \n",task->id, task->staticPriority, task->dynamicPriority);
+
     return 0;
 }
 
@@ -436,9 +471,40 @@ int after_mqueue_msgs (mqueue_t *queue) {
 }
 
 task_t * scheduler() {
-    // FCFS scheduler
+    
     if ( readyQueue != NULL ) {
-        return readyQueue;
+
+        task_t *lowest_prio, *aux;
+        lowest_prio = readyQueue;
+        aux = lowest_prio->next;
+        
+        // percorre a fila circular para encontrar a tarefa com menor valor de prioridade dynamicPriorityamica (-20 a 20)
+        while(aux != readyQueue) {
+            if(task_getD_prio(aux) < task_getD_prio(lowest_prio)) {
+                scheduler_aging(lowest_prio); // envelhece
+                lowest_prio = aux; // atualiza a tarefa que sera executada
+            }
+            else if (task_getD_prio(aux) == task_getD_prio(lowest_prio)) {
+
+                // decisao a partir da estatica
+                if(task_getprio(aux) < task_getprio(lowest_prio)) {
+                    scheduler_aging(lowest_prio);
+                    lowest_prio = aux;
+                } else {
+                    scheduler_aging(aux);
+                }
+            }
+            else {
+                scheduler_aging(aux); // envelhece
+            }
+            // pega proxima tarefa
+            aux = aux->next;
+        }
+
+        // reajuste da prioridade da tarefa escolhida
+        task_setD_prio(lowest_prio, task_getprio(lowest_prio));
+
+        return lowest_prio;
     }
     return NULL;
 }
