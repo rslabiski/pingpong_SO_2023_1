@@ -500,25 +500,16 @@ task_t * scheduler() {
         lowest_prio = readyQueue;
         aux = lowest_prio->next;
         
-        // percorre a fila circular para encontrar a tarefa com menor valor de prioridade dynamicPriorityamica (-20 a 20)
+        // percorre a fila circular para encontrar a tarefa com menor valor de prioridade dynamicPriority
         while(aux != readyQueue) {
-            if(aux->dynamicPriority < lowest_prio->dynamicPriority) {
-                scheduler_aging(lowest_prio); // envelhece
-                lowest_prio = aux; // atualiza a tarefa que sera executada
+            if(aux->dynamicPriority < lowest_prio->dynamicPriority ||
+                aux->dynamicPriority == lowest_prio->dynamicPriority && 
+                aux->staticPriority < lowest_prio->staticPriority) {
+                scheduler_aging(lowest_prio);
+                lowest_prio = aux;
+            } else {
+                scheduler_aging(aux);
             }
-            else if (aux->dynamicPriority == lowest_prio->dynamicPriority) {
-                // decisao a partir da estatica
-                if(aux->staticPriority < lowest_prio->staticPriority) {
-                    scheduler_aging(lowest_prio);
-                    lowest_prio = aux;
-                } else {
-                    scheduler_aging(aux);
-                }
-            }
-            else {
-                scheduler_aging(aux); // envelhece
-            }
-            // pega proxima tarefa
             aux = aux->next;
         }
 
