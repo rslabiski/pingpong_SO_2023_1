@@ -13,6 +13,8 @@
 #define ALPHA_AGING -1  // fator de envelhecimento do scheduler
 #define MAX_TICKS 20    // numero maximo de ticks para uma tarefa
 
+# define A3
+
 struct sigaction action;    // estrutura que define um tratador de sinal
 struct itimerval timer;     // estrutura de inicialização do timer
 
@@ -29,7 +31,7 @@ void clock_init();
 void timer_interruption();
 
 // conta tempo de vida e imprime informações da task
-void finish_task_and_print();
+void finish_task_and_print(task_t *task);
 
 void scheduler_aging(task_t *task) {
     if(task->dynamicPriority > MIN_PRIORITY)
@@ -165,12 +167,15 @@ void before_task_exit () {
 
 void after_task_exit () {
     // put your customization here
+#ifdef A3
     if (freeTask != NULL) {
         finish_task_and_print(freeTask);
     }
     if (countTasks == 1) {
         finish_task_and_print(taskDisp);
     }
+#endif
+    
 #ifdef DEBUG
     printf("\ntask_exit - AFTER- [%d]", taskExec->id);
 #endif
