@@ -28,6 +28,10 @@ typedef struct task_t
    int staticPriority;
    int dynamicPriority;
    int quantum;
+   unsigned int executionTime;
+   unsigned int processorTime;
+   unsigned int numActivations;
+
 
 } task_t ;
 

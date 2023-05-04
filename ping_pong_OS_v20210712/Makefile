@@ -1,6 +1,6 @@
 EXECUTAVEL = ppos-main
 
-all: preempcao run
+all: metrica run
 
 scheduler:
 	gcc -o $(EXECUTAVEL) pingpong-scheduler.c ppos-core-aux.c libppos_static.a
@@ -13,6 +13,9 @@ preempcao_stress:
 
 timer:
 	gcc -o $(EXECUTAVEL) timer.c
+
+metrica:
+	gcc -o $(EXECUTAVEL) pingpong-contab-prio.c ppos-core-aux.c libppos_static.a
 
 clean:
 	rm -rf *.o

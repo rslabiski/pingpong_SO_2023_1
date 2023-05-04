@@ -28,6 +28,9 @@ void clock_init();
 // tratamento de interrupcao gerado pelo timer
 void timer_interruption();
 
+// conta tempo de vida e imprime informações da task
+void finish_task_and_print();
+
 void scheduler_aging(task_t *task) {
     if(task->dynamicPriority > MIN_PRIORITY)
         task->dynamicPriority += ALPHA_AGING;
@@ -87,6 +90,10 @@ void clock_init() {
 }
 
 void timer_interruption() {
+    systemTime++;
+    if (taskExec != NULL) {
+        taskExec->processorTime++;
+    }
     // se for uma tarefa de usuario (main, pang, ..., pung)
     if(taskExec != taskDisp) {
         // diminui o quantum da tarefa
@@ -99,6 +106,15 @@ void timer_interruption() {
     }
 }
 
+void finish_task_and_print(task_t *task) {
+    task->executionTime = systime() - task->executionTime;
+    printf("Task %d exit: execution time  %u ms, processor time  %d ms, %d activations \n", 
+        task->id,
+        task->executionTime, 
+        task->processorTime,
+        task->numActivations
+    );
+}
 // ****************************************************************************
 
 //#define DEBUG 1
@@ -107,6 +123,7 @@ void before_ppos_init () {
     // put your customization here
     signal_init();
     clock_init();
+    systemTime = 0;
 #ifdef DEBUG
     printf("\ninit - BEFORE");
 #endif
@@ -121,6 +138,11 @@ void after_ppos_init () {
 
 void before_task_create (task_t *task ) {
     // put your customization here
+    if (task != NULL) {
+        task->executionTime = systime();
+        task->processorTime = 0;
+        task->numActivations = 1;
+    }
 #ifdef DEBUG
     printf("\ntask_create - BEFORE - [%d]", task->id);
 #endif
@@ -143,6 +165,12 @@ void before_task_exit () {
 
 void after_task_exit () {
     // put your customization here
+    if (freeTask != NULL) {
+        finish_task_and_print(freeTask);
+    }
+    if (countTasks == 1) {
+        finish_task_and_print(taskDisp);
+    }
 #ifdef DEBUG
     printf("\ntask_exit - AFTER- [%d]", taskExec->id);
 #endif
@@ -157,6 +185,9 @@ void before_task_switch ( task_t *task ) {
 
 void after_task_switch ( task_t *task ) {
     // put your customization here
+    if(taskExec != NULL) {
+        taskExec->numActivations++;
+    }
 #ifdef DEBUG
     printf("\ntask_switch - AFTER - [%d -> %d]", taskExec->id, task->id);
 #endif
