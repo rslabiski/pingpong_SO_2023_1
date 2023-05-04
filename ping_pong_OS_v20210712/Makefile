@@ -6,7 +6,7 @@ scheduler:
 	gcc -o $(EXECUTAVEL) pingpong-scheduler.c ppos-core-aux.c libppos_static.a
 
 preempcao:
-	gcc -o $(EXECUTAVEL) pingpong-preempcaoear.c ppos-core-aux.c libppos_static.a
+	gcc -o $(EXECUTAVEL) pingpong-preempcao.c ppos-core-aux.c libppos_static.a
 
 preempcao_stress:
 	gcc -o $(EXECUTAVEL) pingpong-preempcao-stress.c ppos-core-aux.c libppos_static.a
