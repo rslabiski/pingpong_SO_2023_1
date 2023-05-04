@@ -1,0 +1,181 @@
+#include "ppos.h"
+#include "ppos-core-globals.h"
+
+// ****************************************************************************
+// Coloque aqui as suas modificações, p.ex. includes, defines variáveis, 
+// estruturas e funções
+#include <signal.h>
+#include <sys/time.h>
+
+#define MAX_PRIORITY 20
+#define MIN_PRIORITY -20
+#define ALPHA_AGING -1  // fator de envelhecimento do scheduler
+#define MAX_TICKS 20    // numero maximo de ticks para uma tarefa
+
+# define A3 // execuacao da parte 3 do projeto A
+
+struct sigaction action;    // estrutura que define um tratador de sinal
+struct itimerval timer;     // estrutura de inicialização do timer
+
+// envelhece a task
+void scheduler_aging(task_t *task);
+
+// inicializacao do tratador de sinal
+void signal_init();
+
+// inicializacao do timer
+void clock_init();
+
+// tratamento de interrupcao gerado pelo timer
+void timer_interruption();
+
+// conta tempo de vida e imprime informações da task
+void finish_task_and_print(task_t *task);
+
+void scheduler_aging(task_t *task) {
+    if(task->dynamicPriority > MIN_PRIORITY)
+        task->dynamicPriority += ALPHA_AGING;
+}
+
+void task_setprio (task_t *task, int prio) {   
+    if(prio > MAX_PRIORITY)
+        prio = MAX_PRIORITY;
+    else if(prio < MIN_PRIORITY)
+        prio = MIN_PRIORITY;
+
+    if(task == NULL) {
+        taskExec->staticPriority = prio;
+        taskExec->dynamicPriority = prio;
+    } else {
+        task->staticPriority = prio;
+        task->dynamicPriority = prio;
+    }
+}
+
+int task_getprio (task_t *task) {
+    if(task == NULL)
+        return taskExec->staticPriority;
+    return task->staticPriority; 
+}
+
+void signal_init() {
+    // registra a ação para o sinal de timer SIGALRM
+    action.sa_handler = timer_interruption;
+    sigemptyset (&action.sa_mask) ;
+    action.sa_flags = 0 ;
+
+    if (sigaction (SIGALRM, &action, 0) < 0) {
+        perror ("\nErro em sigaction: ") ;
+        exit (1) ;
+    }
+}
+
+void clock_init() {
+    // ajusta valores do temporizador
+    timer.it_value.tv_usec = 1 ;        // primeiro disparo, em micro-segundos
+    timer.it_value.tv_sec  = 0 ;        // primeiro disparo, em segundos
+    timer.it_interval.tv_usec = 1000 ;  // disparos subsequentes, em micro-segundos
+    timer.it_interval.tv_sec = 0;       // disparos subsequentes, em segundos
+
+    // arma o temporizador ITIMER_REAL (vide man setitimer)
+    if (setitimer (ITIMER_REAL, &timer, 0) < 0) {
+        perror ("\nErro em setitimer: ") ;
+        exit (1) ;
+    }
+}
+
+void timer_interruption() {
+    systemTime++;
+    if (taskExec != NULL) {
+        taskExec->processorTime++;
+    }
+    // se for uma tarefa de usuario (main, pang, ..., pung)
+    if(taskExec != taskDisp) {
+        // diminui o quantum da tarefa
+        taskExec->quantum--;
+        // se o quantum da tarefa terminou
+        if(taskExec->quantum == 0) {
+            // libera o processador para proxima tarefa
+            task_yield();
+        }
+    }
+}
+
+void finish_task_and_print(task_t *task) {
+    task->executionTime = systime() - task->executionTime;
+    printf("Task %d exit: execution time  %u ms, processor time  %d ms, %d activations \n", 
+        task->id,
+        task->executionTime, 
+        task->processorTime,
+        task->numActivations
+    );
+}
+// ****************************************************************************
+
+void before_ppos_init () {
+    signal_init();
+    clock_init();
+    systemTime = 0;
+}
+
+void before_task_create (task_t *task ) {
+    if (task != NULL) {
+        task->executionTime = systime();
+        task->processorTime = 0;
+        task->numActivations = 1;
+    }
+}
+
+void after_task_create (task_t *task ) {
+    task->quantum = MAX_TICKS;
+}
+
+void after_task_exit () {
+#ifdef A3
+    if (freeTask != NULL) {
+        finish_task_and_print(freeTask);
+    }
+    if (countTasks == 1) {
+        finish_task_and_print(taskDisp);
+    }
+#endif
+}
+
+void after_task_switch ( task_t *task ) {
+    if(taskExec != NULL) {
+        taskExec->numActivations++;
+    }
+}
+
+void before_task_yield () {
+    taskExec->quantum = MAX_TICKS; // restaura o quantum da tarefa
+}
+
+task_t * scheduler() {
+    
+    if ( readyQueue != NULL ) {
+
+        task_t *lowest_prio, *aux;
+        lowest_prio = readyQueue;
+        aux = lowest_prio->next;
+        
+        // percorre a fila circular para encontrar a tarefa com menor valor de prioridade dynamicPriority
+        while(aux != readyQueue) {
+            if(aux->dynamicPriority < lowest_prio->dynamicPriority ||
+                aux->dynamicPriority == lowest_prio->dynamicPriority && 
+                aux->staticPriority < lowest_prio->staticPriority) {
+                scheduler_aging(lowest_prio);
+                lowest_prio = aux;
+            } else {
+                scheduler_aging(aux);
+            }
+            aux = aux->next;
+        }
+
+        // reajuste da prioridade da tarefa escolhida
+        lowest_prio->dynamicPriority = task_getprio(lowest_prio);
+
+        return lowest_prio;
+    }
+    return NULL;
+}
