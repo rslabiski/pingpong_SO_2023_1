@@ -14,6 +14,9 @@ preempcao_stress:
 contab-prio:
 	gcc -o $(EXECUTAVEL) pingpong-contab-prio.c ppos-core-aux.c libppos_static.a
 
+disco1:
+	gcc -o $(EXECUTAVEL) pingpong-disco1.c ppos-core-aux.c ppos_disk.c libppos_static.a
+
 clean:
 	rm -rf *.o
 	rm -rf *_exec

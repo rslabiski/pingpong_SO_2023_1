@@ -119,7 +119,7 @@ void finish_task_and_print(task_t *task) {
 }
 // ****************************************************************************
 
-//#define DEBUG 1
+#define DEBUG 1
 
 void before_ppos_init () {
     // put your customization here
